@@ -1,27 +1,22 @@
 from tkinter import Tk, BOTH, X, Y, LEFT, RIGHT, Button, BOTTOM
 from tkinter.ttk import Frame
-from turtle import screensize
-
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
-# Implement the default Matplotlib key bindings.
-from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
-
 from numpy.random import rand
 import numpy as np
-
+from numpy import cos, pi
+from skimage import measure
 import matplotlib.pyplot as plt
 
 root = Tk()
-root.wm_title("Fooling")
-root.geometry("1200x600")
+root.wm_title("Organizing")
 
 leftFrame = Frame(root)
 rightFrame = Frame(root)
 
+#left
 leftFigure = Figure(figsize=(5, 4), dpi=100)
-t = np.arange(0, 3, .01)
 leftAx = leftFigure.add_subplot()
 leftAx.set_title('custom picker for line data')
 
@@ -41,11 +36,10 @@ def line_picker(line, mouseevent):
         return True, props
     else:
         return False, dict()
-
 global markedPoint
 global surface
 markedPoint = None
-def onpick2(event):
+def onpick(event):
     global markedPoint
     global surface
     if event.pickx.size>0:
@@ -68,19 +62,34 @@ def onpick2(event):
     leftCanvas.draw()
 
 line, = leftAx.plot(rand(100), rand(100), 'o', picker=line_picker)
-leftFigure.canvas.mpl_connect('pick_event', onpick2)
+leftFigure.canvas.mpl_connect('pick_event', onpick)
 
-def fun(x, y):
-    return x**2 + y
+leftCanvas = FigureCanvasTkAgg(leftFigure, master=leftFrame)  # A tk.DrawingArea.
+leftCanvas.draw()
+
+leftToolbar = NavigationToolbar2Tk(leftCanvas, leftFrame, pack_toolbar=False)
+leftToolbar.update()
+leftToolbar.pack(side=BOTTOM, fill=X)
+
+leftCanvas.get_tk_widget().pack(expand=1, fill=BOTH)
+
+#right
+def fun(x, y, z):
+    return cos(x) + cos(y) + cos(z)
+
+x, y, z = pi*np.mgrid[-1:1:31j, -1:1:31j, -1:1:31j]
+vol = fun(x, y, z)
+iso_val=0.0
+verts, faces, _, _ = measure.marching_cubes(vol, iso_val, spacing=(0.1, 0.1, 0.1))
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
 
 rightFigure = Figure(figsize=(5,4), dpi=100)
 rightAx = rightFigure.add_subplot(111, projection='3d')
 def plotSurface(xoffset=0, yoffset=0):
-    xData = yData = np.arange(-3.0+xoffset, 3.0+yoffset, 0.05)
-    xGrid, yGrid = np.meshgrid(xData, yData)
-    zData = np.array(fun(np.ravel(xGrid), np.ravel(yGrid)))
-    zGrid = zData.reshape(xGrid.shape)
-    return rightAx.plot_surface(xGrid, yGrid, zGrid)
+    return rightAx.plot_trisurf([x + xoffset for x in verts[:, 0]], [y + yoffset for y in verts[:,1]], faces, verts[:, 2],
+                cmap='Spectral', lw=1)
 
 surface = plotSurface()
 rightAx.set_xlabel('X Label')
@@ -88,25 +97,17 @@ rightAx.set_ylabel('Y Label')
 rightAx.set_zlabel('Z Label')
 rightAx.set_title('Pick a point')
 
-leftCanvas = FigureCanvasTkAgg(leftFigure, master=leftFrame)  # A tk.DrawingArea.
-leftCanvas.draw()
-
 rightCanvas = FigureCanvasTkAgg(rightFigure, master=rightFrame)  # A tk.DrawingArea.
 rightCanvas.draw()
-
-leftToolbar = NavigationToolbar2Tk(leftCanvas, leftFrame, pack_toolbar=False)
-leftToolbar.update()
-leftToolbar.pack(side=BOTTOM, fill=X)
 
 rightToolbar = NavigationToolbar2Tk(rightCanvas, rightFrame, pack_toolbar=False)
 rightToolbar.update()
 rightToolbar.pack(side=BOTTOM, fill=X)
 
-leftCanvas.get_tk_widget().pack(expand=1, fill=BOTH)
 rightCanvas.get_tk_widget().pack(expand=1, fill=BOTH)
 
+#pack main window
 leftFrame.pack(side=LEFT, fill=Y)
 rightFrame.pack(side=RIGHT, fill=Y)
-
 
 root.mainloop()
